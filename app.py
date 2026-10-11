@@ -20,7 +20,7 @@ def load_data():
         {
             "日付": datetime.now().strftime("%Y-%m-%d"), 
             "担当ID": "BSMkuromu", 
-            "活動内容": "システム復旧：カレンダーのエラーバグを完全に修正しました",
+            "活動内容": "システム復旧：カレンダーのエラーとズレを完全に修正しました",
             "投稿日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         },
     ]
@@ -30,7 +30,6 @@ def load_data():
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 
-                # 万が一壊れた月データ（13月など）が保存されていたらここで2026年10月に安全にリセット
                 st.session_state.cal_year = data.get("cal_year", datetime.now().year)
                 st.session_state.cal_month = data.get("cal_month", datetime.now().month)
                 if st.session_state.cal_month < 1 or st.session_state.cal_month > 12:
@@ -49,7 +48,6 @@ def load_data():
         except Exception:
             pass
 
-    # 初期設定
     st.session_state.users = default_users
     st.session_state.schedules = default_schedules
     st.session_state.theme_bg_color = "#ffffff"
