@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import calendar
 from datetime import datetime
 
 # 保存先ファイルの設定
@@ -16,7 +17,12 @@ def load_data():
         {"id": "BSMgokiburi", "password": "BSMgokiburi", "name": "BSMgokiburi", "role": "管理者"},
     ]
     default_schedules = [
-        {"日付": "2026-10-12", "担当ID": "BSMkuromu", "活動内容": "システムのセキュリティ強化とデータ永続化完了"},
+        {
+            "日付": datetime.now().strftime("%Y-%m-%d"), 
+            "担当ID": "BSMkuromu", 
+            "活動内容": "システムアップデート：管理者が投稿時間・日時を追跡できるタイムスタンプ機能を実装完了",
+            "投稿日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        },
     ]
     
     if os.path.exists(DATA_FILE):
@@ -28,7 +34,6 @@ def load_data():
                 st.session_state.theme_bg_color = data.get("theme_bg_color", "#ffffff")
                 st.session_state.theme_text_color = data.get("theme_text_color", "#000000")
                 st.session_state.theme_icon = data.get("theme_icon", "🗓️")
-                # アップデート設定の読み込み
                 st.session_state.update_mode = data.get("update_mode", False)
                 st.session_state.update_start = data.get("update_start", "00:00")
                 st.session_state.update_end = data.get("update_end", "00:00")
@@ -41,7 +46,6 @@ def load_data():
     st.session_state.theme_bg_color = "#ffffff"
     st.session_state.theme_text_color = "#000000"
     st.session_state.theme_icon = "🗓️"
-    # アップデート設定の初期値
     st.session_state.update_mode = False
     st.session_state.update_start = "01:00"
     st.session_state.update_end = "05:00"
@@ -53,7 +57,6 @@ def save_data():
         "theme_bg_color": st.session_state.theme_bg_color,
         "theme_text_color": st.session_state.theme_text_color,
         "theme_icon": st.session_state.theme_icon,
-        # アップデート設定の保存
         "update_mode": st.session_state.update_mode,
         "update_start": st.session_state.update_start,
         "update_end": st.session_state.update_end
@@ -67,7 +70,15 @@ st.set_page_config(page_title="チーム管理システム", layout="wide")
 if "users" not in st.session_state:
     load_data()
 
-# CSS注入
+# カレンダー選択用ステート
+if "cal_year" not in st.session_state:
+    st.session_state.cal_year = datetime.now().year
+if "cal_month" not in st.session_state:
+    st.session_state.cal_month = datetime.now().month
+if "selected_date_str" not in st.session_state:
+    st.session_state.selected_date_str = datetime.now().strftime("%Y-%m-%d")
+
+# CSS調整
 st.markdown(f"""
     <style>
     .stApp {{
@@ -106,7 +117,6 @@ if not user:
     if st.button("ログイン"):
         matched_user = next((u for u in st.session_state.users if u["id"] == input_id and u["password"] == input_pw), None)
         if matched_user:
-            # 【制限】アップデートモード有効時、kuromu 以外はブロック
             if st.session_state.update_mode and matched_user["id"] != "BSMkuromu":
                 st.error(f"⚠️ 現在アップデート期間中（{st.session_state.update_start} 〜 {st.session_state.update_end}）のため、ログインできません。")
             else:
@@ -141,11 +151,11 @@ else:
 
     st.markdown(f'<div class="custom-icon">{st.session_state.theme_icon}</div>', unsafe_allow_html=True)
 
-    # 👑 オーナー専用コントロールパネル（BSMkuromu のみ表示・操作可能）
+    # 👑 オーナー専用コントロールパネル
     if user["role"] == "オーナー":
         st.title("👑 オーナー専用コントロールパネル")
         
-        # 🛠️ 【新規】アップデート期間の設定
+        # アップデートモード設定
         st.subheader("🔄 アップデートモード設定")
         is_update = st.checkbox("アップデートモードを有効化（kuromu以外のログイン・変更を禁止）", value=st.session_state.update_mode)
         col_start, col_end = st.columns(2)
@@ -164,7 +174,7 @@ else:
             
         st.divider()
 
-        # 1. デザイン変更設定
+        # デザイン変更設定
         st.subheader("🎨 アプリのデザイン変更（背景・文字・アイコン）")
         col_icon, col_bg, col_text = st.columns(3)
         with col_icon:
@@ -184,7 +194,7 @@ else:
             
         st.divider()
 
-        # 2. ユーザー登録および削除機能
+        # 👥 ユーザー登録および削除機能
         st.subheader("👥 メンバーの管理（登録・削除）")
         col1, col2, col3, col4 = st.columns(4)
         with col1: new_id = st.text_input("新規ユーザーID")
@@ -221,37 +231,28 @@ else:
                         st.rerun()
         st.divider()
 
-    # 🗓 カレンダー・活動内容の管理画面（全ユーザー共通）
-    st.title("🗓 カレンダーと活動内容の管理")
+    # 🗓 カレンダーと活動内容の全体管理システム
+    st.title("🗓️ チームスケジュール・活動履歴管理")
     
-    # リアルタイムでアップデートモードがONになった場合の一般・管理者用強制画面
     if st.session_state.update_mode and user["role"] != "オーナー":
         st.warning(f"🛑 現在、緊急メンテナンス・アップデート期間中（{st.session_state.update_start} 〜 {st.session_state.update_end}）のため、新しい予定の追加や削除はできません。")
     else:
-        col_cal, col_form = st.columns()
+        col_calendar_view, col_entry_form = st.columns()
         
-        with col_cal:
-            st.subheader("1. 日付を選択（カレンダー）")
-            selected_date = st.date_input("カレンダーから日付を選んでください", datetime.now())
-            target_date_str = str(selected_date)
-
-        with col_form:
-            st.subheader(f"2. {target_date_str} の予定を追加")
-            content_val = st.text_area("活動内容・予定の詳細")
+        # --- 🗺️ 左側：カレンダーUI ---
+        with col_calendar_view:
+            st.subheader("📅 カレンダービュー")
             
-            if user["role"] in ["オーナー", "管理者"]:
-                user_list = [u["id"] for u in st.session_state.users]
-                target_user = st.selectbox("担当メンバーIDの指定", user_list, index=user_list.index(user["id"]))
-            else:
-                target_user = user["id"]
-                
-            if st.button("この日に予定を登録"):
-                if content_val:
-                    st.session_state.schedules.append({
-                        "日付": target_date_str,
-                        "担当ID": target_user,
-                        "活動内容": content_val
-                    })
-                    save_data()
-                    st.success("スケジュールを追加しました。")
+            col_m1, col_m2, col_m3 = st.columns()
+            with col_m1:
+                if st.button("◀ 前の月"):
+                    st.session_state.cal_month -= 1
+                    if st.session_state.cal_month == 0:
+                        st.session_state.cal_month = 12
+                        st.session_state.cal_year -= 1
                     st.rerun()
+            with col_m2:
+                st.markdown(f"<h3 style='text-align:center;'>{st.session_state.cal_year}年 {st.session_state.cal_month}月</h3>", unsafe_allow_html=True)
+            with col_m3:
+                if st.button("次の月 ▶"):
+
