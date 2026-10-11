@@ -250,4 +250,5 @@ else:
     st.title("🗓️ チームスケジュール・活動履歴管理")
     
     if st.session_state.update_mode and user["role"] != "オーナー":
+        st.warning(f"🛑 現在、緊急メンテナンス・アップデート期間中（{st.session_state.update_start} 〜 {st.session_state.update_end}）のため、新しい予定の追加や削除はできません。")
 
