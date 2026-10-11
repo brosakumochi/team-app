@@ -232,7 +232,7 @@ else:
         
         st.markdown(f"### 📝 【{target_date_str}】の活動内容・振り返りを投稿")
         
-        with st.form(key=f"reflection_form_{target_date_str}"):
+        with st.form(key="fixed_reflection_form_key"):
             content_val = st.text_area("今日の活動内容や、振り返りの詳細ログを入力してください", placeholder="ここに振り返りを入力...")
             
             if user["role"] in ["オーナー", "管理者"]:
