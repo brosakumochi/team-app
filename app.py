@@ -244,8 +244,8 @@ else:
                 
             submit_button = st.form_submit_button(label="この日の履歴に振り返りを送信する", use_container_width=True)
             
-            if submit_button:
+                      if submit_button:
                 if content_val:
-                    now_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    st.session_state.schedules.append
+                    now_timestamp = datetime. now(). strftime("%Y-%m-%d %H:%M:%S")
+                    st. session_state. schedules. append({
                         "日付": target_date_str,
