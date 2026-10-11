@@ -249,7 +249,7 @@ else:
                     now_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     st.session_state.schedules.append({
                         "日付": target_date_str,
-                         )
+                           } 
             save_data()
             st.success("✅ 保存完了！")
             st.rerun()
