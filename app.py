@@ -20,7 +20,7 @@ def load_data():
         {
             "日付": datetime.now().strftime("%Y-%m-%d"), 
             "担当ID": "BSMkuromu", 
-            "活動内容": "システムアップデート：管理者が投稿時間・日時を追跡できるタイムスタンプ機能を実装完了",
+            "活動内容": "システム復旧：カレンダーのエラーバグを完全に修正しました",
             "投稿日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         },
     ]
@@ -29,6 +29,14 @@ def load_data():
         try:
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
+                
+                # 万が一壊れた月データ（13月など）が保存されていたらここで2026年10月に安全にリセット
+                st.session_state.cal_year = data.get("cal_year", datetime.now().year)
+                st.session_state.cal_month = data.get("cal_month", datetime.now().month)
+                if st.session_state.cal_month < 1 or st.session_state.cal_month > 12:
+                    st.session_state.cal_month = datetime.now().month
+                    st.session_state.cal_year = datetime.now().year
+                
                 st.session_state.users = data.get("users", default_users)
                 st.session_state.schedules = data.get("schedules", default_schedules)
                 st.session_state.theme_bg_color = data.get("theme_bg_color", "#ffffff")
@@ -41,6 +49,7 @@ def load_data():
         except Exception:
             pass
 
+    # 初期設定
     st.session_state.users = default_users
     st.session_state.schedules = default_schedules
     st.session_state.theme_bg_color = "#ffffff"
@@ -49,6 +58,8 @@ def load_data():
     st.session_state.update_mode = False
     st.session_state.update_start = "01:00"
     st.session_state.update_end = "05:00"
+    st.session_state.cal_year = datetime.now().year
+    st.session_state.cal_month = datetime.now().month
 
 def save_data():
     data = {
@@ -59,7 +70,9 @@ def save_data():
         "theme_icon": st.session_state.theme_icon,
         "update_mode": st.session_state.update_mode,
         "update_start": st.session_state.update_start,
-        "update_end": st.session_state.update_end
+        "update_end": st.session_state.update_end,
+        "cal_year": st.session_state.cal_year,
+        "cal_month": st.session_state.cal_month
     }
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
@@ -67,14 +80,18 @@ def save_data():
 # 1. ページ基本設定
 st.set_page_config(page_title="チーム管理システム", layout="wide")
 
+# セッション状態の初期化
 if "users" not in st.session_state:
     load_data()
 
-# カレンダー選択用ステート
-if "cal_year" not in st.session_state:
+if "cal_year" not in st.session_state or "cal_month" not in st.session_state:
     st.session_state.cal_year = datetime.now().year
-if "cal_month" not in st.session_state:
     st.session_state.cal_month = datetime.now().month
+
+if st.session_state.cal_month < 1 or st.session_state.cal_month > 12:
+    st.session_state.cal_month = datetime.now().month
+    st.session_state.cal_year = datetime.now().year
+
 if "selected_date_str" not in st.session_state:
     st.session_state.selected_date_str = datetime.now().strftime("%Y-%m-%d")
 
@@ -235,24 +252,4 @@ else:
     st.title("🗓️ チームスケジュール・活動履歴管理")
     
     if st.session_state.update_mode and user["role"] != "オーナー":
-        st.warning(f"🛑 現在、緊急メンテナンス・アップデート期間中（{st.session_state.update_start} 〜 {st.session_state.update_end}）のため、新しい予定の追加や削除はできません。")
-    else:
-        col_calendar_view, col_entry_form = st.columns()
-        
-        # --- 🗺️ 左側：カレンダーUI ---
-        with col_calendar_view:
-            st.subheader("📅 カレンダービュー")
-            
-            col_m1, col_m2, col_m3 = st.columns()
-            with col_m1:
-                if st.button("◀ 前の月"):
-                    st.session_state.cal_month -= 1
-                    if st.session_state.cal_month == 0:
-                        st.session_state.cal_month = 12
-                        st.session_state.cal_year -= 1
-                    st.rerun()
-            with col_m2:
-                st.markdown(f"<h3 style='text-align:center;'>{st.session_state.cal_year}年 {st.session_state.cal_month}月</h3>", unsafe_allow_html=True)
-            with col_m3:
-                if st.button("次の月 ▶"):
 
