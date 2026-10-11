@@ -76,7 +76,7 @@ st.markdown(f"""
         background-color: {st.session_state.theme_bg_color} !important;
         color: {st.session_state.theme_text_color} !important;
     }}
-    h1, h2, h3, p, span, label, stDataFrame {{
+    h1, h2, h3, p, span, label {{
         color: {st.session_state.theme_text_color} !important;
     }}
     .custom-icon {{
@@ -226,18 +226,15 @@ else:
     if st.session_state.update_mode and user["role"] != "オーナー":
         st.warning(f"🛑 現在、緊急メンテナンス・アップデート期間中（{st.session_state.update_start} 〜 {st.session_state.update_end}）のため、新しい予定の追加や変更はできません。")
     else:
-        # 💡 【完全固定カレンダーUI】
         st.subheader("1. 対象の日付を選択してください（カレンダー）")
         chosen_date = st.date_input("カレンダーから直接日付を選択するか、文字を入力してください", datetime.now())
         target_date_str = chosen_date.strftime("%Y-%m-%d")
         
         st.markdown(f"### 📝 【{target_date_str}】の活動内容・振り返りを投稿")
         
-        # 💡 【完全固定の振り返り入力欄】
         with st.form(key=f"reflection_form_{target_date_str}"):
             content_val = st.text_area("今日の活動内容や、振り返りの詳細ログを入力してください", placeholder="ここに振り返りを入力...")
             
-            # 権限に応じた担当者指定
             if user["role"] in ["オーナー", "管理者"]:
                 user_list = [u["id"] for u in st.session_state.users]
                 target_user = st.selectbox("担当メンバーID（管理者機能）", user_list, index=user_list.index(user["id"]))
@@ -245,8 +242,11 @@ else:
                 target_user = user["id"]
                 st.write(f"投稿メンバーID: `{target_user}`")
                 
-            # 💡 【完全固定の送信ボタン】
             submit_button = st.form_submit_button(label="この日の履歴に振り返りを送信する", use_container_width=True)
             
             if submit_button:
                 if content_val:
+                    now_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    st.session_state.schedules.append({
+                        "日付": target_date_str,
+
