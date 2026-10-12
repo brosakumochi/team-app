@@ -230,11 +230,9 @@ else:
     # 📋 メンバー共通メイン画面
     st.title("📝 チーム活動・振り返り管理")
 
-    # --- 🕵️‍♂️ 改善①：本日の振り返り提出状況の一覧化 ---
+    # --- 📢 本日の振り返り提出状況 ---
     st.subheader("📢 本日の振り返り提出状況")
     today_str = datetime.now().strftime("%Y-%m-%d")
-    
-    # 今日誰が提出したかを判定
     submitted_ids = [s["担当ID"] for s in st.session_state.schedules if s["日付"] == today_str]
     
     cols_status = st.columns(len(st.session_state.users))
@@ -245,30 +243,12 @@ else:
             else:
                 st.markdown(f"<div class='status-box' style='background-color:#e74c3c; color:white;'>🔴 {u['name']}<br>未提出</div>", unsafe_allow_html=True)
     st.write("")
-        # --- ✍️ 改善②：バグらないシンプルな投稿フォーム ---
+
+    # --- 🖋️ 振り返り・活動内容の入力 ---
     st.subheader("🖋️ 振り返り・活動内容の入力")
-    
-    # フォームを使せず直接配置することでボタン消失バグを回避
     select_date = st.date_input("対象日付", datetime.now(), key="input_date")
     activity_text = st.text_area("活動内容・振り返り（今日やったことや課題など）", key="input_text")
     
     if st.button("振り返りを保存・更新する", key="save_btn"):
         date_str = select_date.strftime("%Y-%m-%d")
         if activity_text.strip():
-            # 古い同一日付・ユーザーのデータを消す
-            st.session_state.schedules = [s for s in st.session_state.schedules if not (s["日付"] == date_str and s["担当ID"] == user["id"])]
-            
-            # 新しいデータを追加
-            st.session_state.schedules.append({
-                "日付": date_str,
-                "担当ID": user["id"],
-                "活動内容": activity_text,
-                "投稿日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-            save_data()
-            st.success("振り返りを記録しました！")
-            st.rerun()
-        else:
-            st.error("活動内容を入力してください。")
-
-  
