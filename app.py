@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # 保存先ファイルの設定
 DATA_FILE = "team_management_data.json"
@@ -83,11 +83,12 @@ st.markdown(f"""
         font-size: 48px;
         margin-bottom: 10px;
     }}
-    .status-badge {{
-        padding: 4px 8px;
-        border-radius: 4px;
+    .status-box {{
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+        margin: 5px;
         font-weight: bold;
-        color: white !important;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -226,32 +227,32 @@ else:
                         st.rerun()
         st.divider()
 
-    # 📋 ここから全権限共通のメイン機能
+    # 📋 メンバー共通メイン画面
     st.title("📝 チーム活動・振り返り管理")
 
-    # --- 🛠️ 追加機能①：本日の振り返り提出状況の可視化 ---
+    # --- 🕵️‍♂️ 改善①：本日の振り返り提出状況の一覧化 ---
     st.subheader("📢 本日の振り返り提出状況")
     today_str = datetime.now().strftime("%Y-%m-%d")
     
-    # 今日提出した人のIDリスト
+    # 今日誰が提出したかを判定
     submitted_ids = [s["担当ID"] for s in st.session_state.schedules if s["日付"] == today_str]
     
-    # ユーザーごとに提出済・未提出を判定してバッジ表示
     cols_status = st.columns(len(st.session_state.users))
     for idx, u in enumerate(st.session_state.users):
         with cols_status[idx]:
             if u["id"] in submitted_ids:
-                st.markdown(f"**{u['name']}** <span class='status-badge' style='background-color:#2ecc71;'>提出済 ✅</span>", unsafe_allow_html=True)
+                st.markdown(f"<div class='status-box' style='background-color:#2ecc71; color:white;'>🟢 {u['name']}<br>提出済</div>", unsafe_allow_html=True)
             else:
-                st.markdown(f"**{u['name']}** <span class='status-badge' style='background-color:#e74c3c;'>未提出 ❌</span>", unsafe_allow_html=True)
+                st.markdown(f"<div class='status-box' style='background-color:#e74c3c; color:white;'>🔴 {u['name']}<br>未提出</div>", unsafe_allow_html=True)
     st.write("")
 
-    # --- ✍️ 振り返りの新規投稿フォーム ---
+    # --- ✍️ 改善②：バグらないシンプルな投稿フォーム ---
     st.subheader("🖋️ 振り返り・活動内容の入力")
-    with st.form("schedule_form"):
-        select_date = st.date_input("対象日付", datetime.now())
-        activity_text = st.text_area("活動内容・振り返り（今日やったことや課題など）")
-        submit_btn = st.form_submit_with_clear_on_submit(st.form_submit_button("振り返りを保存・更新"))
-        
-        if submit_btn:
-            date_str = select_date.strftime("%Y-%m-%d")
+    
+    # フォームを使わず直接配置することでボタン消失バグを回避
+    select_date = st.date_input("対象日付", datetime.now(), key="input_date")
+    activity_text = st.text_area("活動内容・振り返り（今日やったことや課題など）", key="input_text")
+    
+    if st.button("振り返りを保存・更新する", key="save_btn"):
+        date_str = select_date.strftime("%Y-%m-%d")
+        if activity_text.strip():
