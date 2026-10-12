@@ -252,3 +252,34 @@ else:
     if st.button("振り返りを保存・更新する", key="save_btn"):
         date_str = select_date.strftime("%Y-%m-%d")
         if activity_text.strip():
+コードは注意してご使用ください。
+st.session_state.schedules = [s for s in st.session_state.schedules if not (s["日付"] == date_str and s["担当ID"] == user["id"])]
+st.session_state.schedules.append({
+"日付": date_str,
+"担当ID": user["id"],
+"活動内容": activity_text,
+"投稿日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+})
+save_data()
+st.success("振り返りを記録しました！")
+st.rerun()
+else:
+st.error("活動内容を入力してください。")
+# --- 🗓️ スケジュール・振り返り一覧（タイムライン表） ---
+st.divider()
+st.subheader("📅 スケジュール・振り返り一覧（全員分）")
+id_to_name = {u["id"]: u["name"] for u in st.session_state.users}
+display_records = []
+for item in st.session_state.schedules:
+display_records.append({
+"日付": item.get("日付", ""),
+"投稿者": id_to_name.get(item.get("担当ID", ""), item.get("担当ID", "")),
+"活動内容・振り返り内容": item.get("活動内容", ""),
+"システム投稿日時": item.get("投稿日時", "")
+})
+df_display = pd.DataFrame(display_records)
+if not df_display.empty:
+df_display = df_display.sort_values(by="日付", ascending=False)
+st.dataframe(df_display, use_container_width=True, hide_index=True)
+else:
+st.info("データがありません。")
