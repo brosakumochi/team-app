@@ -4,10 +4,8 @@ import json
 import os
 from datetime import datetime
 
-# 保存先ファイルの設定
 DATA_FILE = "team_management_data.json"
 
-# --- 💾 データの読込・保存関数 ---
 def load_data():
     default_users = [
         {"id": "BSMkuromu", "password": "BSMkuromu", "name": "オーナー", "role": "オーナー"},
@@ -63,13 +61,11 @@ def save_data():
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# 1. ページ基本設定
 st.set_page_config(page_title="チーム管理システム", layout="wide")
 
 if "users" not in st.session_state:
     load_data()
 
-# CSS調整
 st.markdown(f"""
     <style>
     .stApp {{
@@ -106,7 +102,6 @@ def logout():
 user = st.session_state.logged_in_user
 fa_verified = st.session_state.fa_verified
 
-# --- 🔓 認証フロー ---
 if not user:
     st.title("🔑 チーム管理システム - ログイン")
     input_id = st.text_input("ユーザーID")
@@ -142,18 +137,15 @@ elif user and not fa_verified:
         logout()
 
 else:
-    # 🔓 メインシステム画面
     st.sidebar.title(f"👤 {user['name']} ({user['role']})")
     if st.sidebar.button("ログアウト"):
         logout()
 
     st.markdown(f'<div class="custom-icon">{st.session_state.theme_icon}</div>', unsafe_allow_html=True)
 
-    # 👑 オーナー専用コントロールパネル
     if user["role"] == "オーナー":
         st.title("👑 オーナー専用コントロールパネル")
         
-        # アップデート設定
         st.subheader("🔄 アップデートモード設定")
         is_update = st.checkbox("アップデートモードを有効化（kuromu以外のログイン・変更を禁止）", value=st.session_state.update_mode)
         col_start, col_end = st.columns(2)
@@ -171,7 +163,6 @@ else:
             st.rerun()
         st.divider()
 
-        # デザイン変更設定
         st.subheader("🎨 アプリのデザイン変更（背景・文字・アイコン）")
         col_icon, col_bg, col_text = st.columns(3)
         with col_icon:
@@ -190,7 +181,6 @@ else:
             st.rerun()
         st.divider()
 
-        # メンバー登録・削除管理
         st.subheader("👥 メンバーの管理（登録・削除）")
         col1, col2, col3, col4 = st.columns(4)
         with col1: new_id = st.text_input("新規ユーザーID")
@@ -227,10 +217,8 @@ else:
                         st.rerun()
         st.divider()
 
-    # 📋 メンバー共通メイン画面
     st.title("📝 チーム活動・振り返り管理")
 
-    # --- 📢 本日の振り返り提出状況 ---
     st.subheader("📢 本日の振り返り提出状況")
     today_str = datetime.now().strftime("%Y-%m-%d")
     submitted_ids = [s["担当ID"] for s in st.session_state.schedules if s["日付"] == today_str]
@@ -244,7 +232,6 @@ else:
                 st.markdown(f"<div class='status-box' style='background-color:#e74c3c; color:white;'>🔴 {u['name']}<br>未提出</div>", unsafe_allow_html=True)
     st.write("")
 
-    # --- 🖋️ 振り返り・活動内容の入力 ---
     st.subheader("🖋️ 振り返り・活動内容の入力")
     select_date = st.date_input("対象日付", datetime.now(), key="input_date")
     activity_text = st.text_area("活動内容・振り返り（今日やったことや課題など）", key="input_text")
@@ -252,34 +239,10 @@ else:
     if st.button("振り返りを保存・更新する", key="save_btn"):
         date_str = select_date.strftime("%Y-%m-%d")
         if activity_text.strip():
-コードは注意してご使用ください。
-st.session_state.schedules = [s for s in st.session_state.schedules if not (s["日付"] == date_str and s["担当ID"] == user["id"])]
-st.session_state.schedules.append({
-"日付": date_str,
-"担当ID": user["id"],
-"活動内容": activity_text,
-"投稿日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-})
-save_data()
-st.success("振り返りを記録しました！")
-st.rerun()
-else:
-st.error("活動内容を入力してください。")
-# --- 🗓️ スケジュール・振り返り一覧（タイムライン表） ---
-st.divider()
-st.subheader("📅 スケジュール・振り返り一覧（全員分）")
-id_to_name = {u["id"]: u["name"] for u in st.session_state.users}
-display_records = []
-for item in st.session_state.schedules:
-display_records.append({
-"日付": item.get("日付", ""),
-"投稿者": id_to_name.get(item.get("担当ID", ""), item.get("担当ID", "")),
-"活動内容・振り返り内容": item.get("活動内容", ""),
-"システム投稿日時": item.get("投稿日時", "")
-})
-df_display = pd.DataFrame(display_records)
-if not df_display.empty:
-df_display = df_display.sort_values(by="日付", ascending=False)
-st.dataframe(df_display, use_container_width=True, hide_index=True)
-else:
-st.info("データがありません。")
+            st.session_state.schedules = [s for s in st.session_state.schedules if not (s["日付"] == date_str and s["担当ID"] == user["id"])]
+            st.session_state.schedules.append({
+                "日付": date_str,
+                "担当ID": user["id"],
+                "活動内容": activity_text,
+                "投稿日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
