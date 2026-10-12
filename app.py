@@ -109,6 +109,7 @@ def logout():
 user = st.session_state.logged_in_user
 fa_verified = st.session_state.fa_verified
 
+# 1. 強制ロック画面の判定
 if st.session_state.system_locked:
     st.title("🚨 セキュリティロック発動中")
     st.error("パスワードが複数回間違えられたため、システムが強制ダウン（ロック）しました。")
@@ -127,6 +128,7 @@ if st.session_state.system_locked:
         else:
             st.error("オーナー認証に失敗しました。解除できません。")
 
+# 2. 未ログイン状態の判定
 elif not user:
     st.title("🔑 チーム管理システム - ログイン")
     
@@ -155,6 +157,7 @@ elif not user:
                 save_data()
             st.rerun()
 
+# 3. 二段階認証画面の判定
 elif user and not fa_verified:
     st.title("🛡️ オーナー専用 二段階認証ロック")
     st.write(f"アカウント: **{user['name']} (ID: {user['id']})**")
@@ -171,6 +174,7 @@ elif user and not fa_verified:
     if st.button("キャンセルしてログイン画面に戻る"):
         logout()
 
+# 4. ログイン成功後のメイン画面
 else:
     st.sidebar.title(f"👤 {user['name']} ({user['role']})")
     if st.sidebar.button("ログアウト"):
@@ -178,6 +182,7 @@ else:
 
     st.markdown(f'<div class="custom-icon">{st.session_state.theme_icon}</div>', unsafe_allow_html=True)
 
+    # 👑 オーナー専用コントロールパネル
     if user["role"] == "オーナー":
         st.title("👑 オーナー専用コントロールパネル")
         
@@ -255,6 +260,3 @@ else:
             with col_u_id: st.write(f"ID: {u['id']}")
             with col_u_name: st.write(f"名前: {u['name']}")
             with col_u_role: st.write(f"権限: {u['role']}")
-            with col_u_act:
-                if u["id"] == "BSMkuromu":
-                    st.write("🔒 オーナーは削除不可")
