@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import sys
 from datetime import datetime
 
 DATA_FILE = "team_management_data.json"
@@ -34,6 +35,7 @@ def load_data():
                 st.session_state.update_mode = data.get("update_mode", False)
                 st.session_state.update_start = data.get("update_start", "00:00")
                 st.session_state.update_end = data.get("update_end", "00:00")
+                st.session_state.system_locked = data.get("system_locked", False)
                 return
         except Exception:
             pass
@@ -46,6 +48,7 @@ def load_data():
     st.session_state.update_mode = False
     st.session_state.update_start = "01:00"
     st.session_state.update_end = "05:00"
+    st.session_state.system_locked = False
 
 def save_data():
     data = {
@@ -56,7 +59,8 @@ def save_data():
         "theme_icon": st.session_state.theme_icon,
         "update_mode": st.session_state.update_mode,
         "update_start": st.session_state.update_start,
-        "update_end": st.session_state.update_end
+        "update_end": st.session_state.update_end,
+        "system_locked": st.session_state.system_locked
     }
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
@@ -65,6 +69,9 @@ st.set_page_config(page_title="チーム管理システム", layout="wide")
 
 if "users" not in st.session_state:
     load_data()
+
+if "login_attempts" not in st.session_state:
+    st.session_state.login_attempts = 0
 
 st.markdown(f"""
     <style>
@@ -102,8 +109,31 @@ def logout():
 user = st.session_state.logged_in_user
 fa_verified = st.session_state.fa_verified
 
-if not user:
+if st.session_state.system_locked:
+    st.title("🚨 セキュリティロック発動中")
+    st.error("パスワードが複数回間違えられたため、システムが強制ダウン（ロック）しました。")
+    st.write("この画面はオーナー専用の解除コードを入力するまで解除されません。")
+    
+    unlock_id = st.text_input("オーナーIDを入力してください", key="unlock_id")
+    unlock_pw = st.text_input("オーナーパスワードを入力してください", type="password", key="unlock_pw")
+    
+    if st.button("ロックを解除してシステムを再起動"):
+        if unlock_id == "BSMkuromu" and unlock_pw == "BSMkuromu":
+            st.session_state.system_locked = False
+            st.session_state.login_attempts = 0
+            save_data()
+            st.success("ロックを解除しました。通常画面に戻ります。")
+            st.rerun()
+        else:
+            st.error("オーナー認証に失敗しました。解除できません。")
+
+elif not user:
     st.title("🔑 チーム管理システム - ログイン")
+    
+    remaining = 3 - st.session_state.login_attempts
+    if st.session_state.login_attempts > 0:
+        st.warning(f"⚠️ パスワードが間違っています。強制ロックまであと {remaining} 回")
+        
     input_id = st.text_input("ユーザーID")
     input_pw = st.text_input("パスワード", type="password")
     
@@ -113,12 +143,17 @@ if not user:
             if st.session_state.update_mode and matched_user["id"] != "BSMkuromu":
                 st.error(f"⚠️ 現在アップデート期間中（{st.session_state.update_start} 〜 {st.session_state.update_end}）のため、ログインできません。")
             else:
+                st.session_state.login_attempts = 0
                 st.session_state.logged_in_user = matched_user
                 if matched_user["id"] != "BSMkuromu":
                     st.session_state.fa_verified = True
                 st.rerun()
         else:
-            st.error("IDまたはパスワードが正しくありません。")
+            st.session_state.login_attempts += 1
+            if st.session_state.login_attempts >= 3:
+                st.session_state.system_locked = True
+                save_data()
+            st.rerun()
 
 elif user and not fa_verified:
     st.title("🛡️ オーナー専用 二段階認証ロック")
@@ -146,6 +181,20 @@ else:
     if user["role"] == "オーナー":
         st.title("👑 オーナー専用コントロールパネル")
         
+        st.subheader("💻 サーバー電源管理")
+        col_sd, col_rb = st.columns(2)
+        with col_sd:
+            if st.button("🚨 サーバーをシャットダウンする", key="sys_shutdown"):
+                st.warning("サーバーを停止します...")
+                save_data()
+                os._exit(0)
+        with col_rb:
+            if st.button("🔄 サーバーを再起動する", key="sys_restart"):
+                st.warning("サーバーを再起動します...")
+                save_data()
+                st.rerun()
+        st.divider()
+
         st.subheader("🔄 アップデートモード設定")
         is_update = st.checkbox("アップデートモードを有効化（kuromu以外のログイン・変更を禁止）", value=st.session_state.update_mode)
         col_start, col_end = st.columns(2)
@@ -209,40 +258,3 @@ else:
             with col_u_act:
                 if u["id"] == "BSMkuromu":
                     st.write("🔒 オーナーは削除不可")
-                else:
-                    if st.button("削除", key=f"del_{u['id']}"):
-                        st.session_state.users = [user for user in st.session_state.users if user["id"] != u["id"]]
-                        save_data()
-                        st.success(f"ID: {u['id']} を削除しました。")
-                        st.rerun()
-        st.divider()
-
-    st.title("📝 チーム活動・振り返り管理")
-
-    st.subheader("📢 本日の振り返り提出状況")
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    submitted_ids = [s["担当ID"] for s in st.session_state.schedules if s["日付"] == today_str]
-    
-    cols_status = st.columns(len(st.session_state.users))
-    for idx, u in enumerate(st.session_state.users):
-        with cols_status[idx]:
-            if u["id"] in submitted_ids:
-                st.markdown(f"<div class='status-box' style='background-color:#2ecc71; color:white;'>🟢 {u['name']}<br>提出済</div>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<div class='status-box' style='background-color:#e74c3c; color:white;'>🔴 {u['name']}<br>未提出</div>", unsafe_allow_html=True)
-    st.write("")
-
-    st.subheader("🖋️ 振り返り・活動内容の入力")
-    select_date = st.date_input("対象日付", datetime.now(), key="input_date")
-    activity_text = st.text_area("活動内容・振り返り（今日やったことや課題など）", key="input_text")
-    
-    if st.button("振り返りを保存・更新する", key="save_btn"):
-        date_str = select_date.strftime("%Y-%m-%d")
-        if activity_text.strip():
-            st.session_state.schedules = [s for s in st.session_state.schedules if not (s["日付"] == date_str and s["担当ID"] == user["id"])]
-            st.session_state.schedules.append({
-                "日付": date_str,
-                "担当ID": user["id"],
-                "活動内容": activity_text,
-                "投稿日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
