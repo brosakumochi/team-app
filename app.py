@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # 保存先ファイルの設定
 DATA_FILE = "team_management_data.json"
@@ -82,6 +82,12 @@ st.markdown(f"""
     .custom-icon {{
         font-size: 48px;
         margin-bottom: 10px;
+    }}
+    .status-badge {{
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+        color: white !important;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -213,48 +219,39 @@ else:
                 if u["id"] == "BSMkuromu":
                     st.write("🔒 オーナーは削除不可")
                 else:
-                    if st.button("このメンバーを削除", key=f"del_user_{u['id']}"):
-                        st.session_state.users.remove(u)
+                    if st.button("削除", key=f"del_{u['id']}"):
+                        st.session_state.users = [user for user in st.session_state.users if user["id"] != u["id"]]
                         save_data()
                         st.success(f"ID: {u['id']} を削除しました。")
                         st.rerun()
         st.divider()
 
-    # --- 🗓️ 全ユーザー共通：カレンダー＆振り返り管理システム ---
-    st.title("🗓️ チームスケジュール・活動履歴管理")
+    # 📋 ここから全権限共通のメイン機能
+    st.title("📝 チーム活動・振り返り管理")
+
+    # --- 🛠️ 追加機能①：本日の振り返り提出状況の可視化 ---
+    st.subheader("📢 本日の振り返り提出状況")
+    today_str = datetime.now().strftime("%Y-%m-%d")
     
-    if st.session_state.update_mode and user["role"] != "オーナー":
-        st.warning(f"🛑 現在、緊急メンテナンス・アップデート期間中（{st.session_state.update_start} 〜 {st.session_state.update_end}）のため、新しい予定の追加や変更はできません。")
-    else:
-        st.subheader("1. 対象の日付を選択してください（カレンダー）")
-        chosen_date = st.date_input("カレンダーから直接日付を選択するか、文字を入力してください", datetime.now())
-        target_date_str = chosen_date.strftime("%Y-%m-%d")
-        
-        st.markdown(f"### 📝 【{target_date_str}】の活動内容・振り返りを投稿")
-        
-        with st.form(key="fixed_reflection_form_key"):
-            content_val = st.text_area("今日の活動内容や、振り返りの詳細ログを入力してください", placeholder="ここに振り返りを入力...")
-            
-            if user["role"] in ["オーナー", "管理者"]:
-                user_list = [u["id"] for u in st.session_state.users]
-                target_user = st.selectbox("担当メンバーID（管理者機能）", user_list, index=user_list.index(user["id"]))
+    # 今日提出した人のIDリスト
+    submitted_ids = [s["担当ID"] for s in st.session_state.schedules if s["日付"] == today_str]
+    
+    # ユーザーごとに提出済・未提出を判定してバッジ表示
+    cols_status = st.columns(len(st.session_state.users))
+    for idx, u in enumerate(st.session_state.users):
+        with cols_status[idx]:
+            if u["id"] in submitted_ids:
+                st.markdown(f"**{u['name']}** <span class='status-badge' style='background-color:#2ecc71;'>提出済 ✅</span>", unsafe_allow_html=True)
             else:
-                target_user = user["id"]
-                st.write(f"投稿メンバーID: `{target_user}`")
-                
-            submit_button = st.form_submit_button(label="この日の履歴に振り返りを送信する", use_container_width=True)
-            
-            if submit_button:
-                if content_val:
-                    now_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    st.session_state.schedules.append({
-                        "日付": target_date_str,
-                      "担当ID": target_user,
-                        "活動内容": content_val,
-                        "投稿日時": now_timestamp
-                    })
-                    save_data()
-                    st.success("✅ 保存完了！")
-                    st.rerun()
-                else:
-                    st.error("振り返り内容が空欄です。")
+                st.markdown(f"**{u['name']}** <span class='status-badge' style='background-color:#e74c3c;'>未提出 ❌</span>", unsafe_allow_html=True)
+    st.write("")
+
+    # --- ✍️ 振り返りの新規投稿フォーム ---
+    st.subheader("🖋️ 振り返り・活動内容の入力")
+    with st.form("schedule_form"):
+        select_date = st.date_input("対象日付", datetime.now())
+        activity_text = st.text_area("活動内容・振り返り（今日やったことや課題など）")
+        submit_btn = st.form_submit_with_clear_on_submit(st.form_submit_button("振り返りを保存・更新"))
+        
+        if submit_btn:
+            date_str = select_date.strftime("%Y-%m-%d")
